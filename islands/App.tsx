@@ -17,19 +17,7 @@ interface Episode {
 //     [episodes, searchTerm]
 //   );
 
-//   const bandGroups = useMemo(() => {
-//     const groups: Record<string, Episode[]> = {};
-//     filteredEpisodes.forEach(episode => {
-//       if (!episode.band || episode.band === "" || episode.band.includes("<") || episode.band.includes(">")) {
-//         groups["Unknown"] = groups["Unknown"] || [];
-//         groups["Unknown"].push(episode);
-//       } else {
-//         groups[episode.band] = groups[episode.band] || [];
-//         groups[episode.band].push(episode);
-//       }
-//     });
-//     return groups;
-//   }, [filteredEpisodes]);
+
 
 //   const sortedBands = useMemo(() => 
 //     Object.entries(bandGroups).sort((a, b) => {
@@ -121,6 +109,8 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'band' | 'count' | 'date'>('date');
   const [activeTab, setActiveTab] = useState<'tracker' | 'stats'>('tracker');
+  const [bandGroups, setBandGroups] = useState<Record<string, Episode[]>>({});
+   
 
   useEffect(() => {
     // Sort episodes by date (most recent first) before setting state
@@ -132,7 +122,10 @@ export default function App() {
 
   const filteredEpisodes = episodes.filter(episode =>
     episode.band.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).filter(episode =>
+    // remove duplicate ids
+    episodes.findIndex(e => e.id === episode.id) === episodes.indexOf(episode)
+  )
 
   const bandCounts = episodes.reduce((acc, episode) => {
     if (!episode.band || episode.band === "" || episode.band.includes("<") || episode.band.includes(">")) {
@@ -160,9 +153,24 @@ export default function App() {
   };
 
   const tweetMissingInfo = (episodeTitle: string) => {
-    const tweetText = encodeURIComponent(`Hey @domtheporcupine, the podcast episode "${episodeTitle}" is missing band information. Can you help fill it in?`);
+    const tweetText = encodeURIComponent(`Hey @domtheporcupine, in episode "${episodeTitle}" DK mentions the band: `);
     window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
   };
+
+
+  useEffect(() => {
+    const groups: Record<string, Episode[]> = {};
+    filteredEpisodes.forEach(episode => {
+      if (!episode.band || episode.band === "" || episode.band.includes("<") || episode.band.includes(">")) {
+        groups["Unknown"] = groups["Unknown"] || [];
+        groups["Unknown"].push(episode);
+      } else {
+        groups[episode.band] = groups[episode.band] || [];
+        groups[episode.band].push(episode);
+      }
+    });
+    setBandGroups(groups);
+  }, [filteredEpisodes]);
 
 
 
@@ -189,7 +197,7 @@ export default function App() {
         </button>
       </div>
       
-{activeTab === 'stats' && <StatsPage episodes={episodes} />}
+      {activeTab === 'stats' && <StatsPage episodes={episodes} />}
       {activeTab === 'tracker' && (
         <>
         <div class="mb-6">
@@ -257,6 +265,15 @@ export default function App() {
               <li key={band} class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
                 <h3 class="font-semibold text-lg text-indigo-700">{band}</h3>
                 <p class="text-gray-600">{count} {count === 1 ? 'mention' : 'mentions'}</p>
+                 {true && (
+                  <ul class="mt-2 space">
+                    {bandGroups[band].map(episode => (
+                      <li key={`${episode.id}-list`} class="text-sm text-gray-800">
+                        {episode.title} ({formatDate(episode.published)})
+                      </li>
+                    ))}
+                  </ul>
+                 )}
               </li>
             );
           }
